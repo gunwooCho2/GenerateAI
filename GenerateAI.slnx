@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Core/Core.csproj" />
+  <Project Path="FindUser/FindUser.csproj" />
+  <Project Path="FreeModel/FreeModel.csproj" />
+</Solution>
