@@ -39,6 +39,7 @@ public class GenerateOpenAiBase:GenerateAi
         int inputTokens = completion.Usage.InputTokenCount;
         int outputTokens = completion.Usage.OutputTokenCount;
         int totalTokens = completion.Usage.TotalTokenCount;
+        int cacheHitTokens = completion.Usage.InputTokenDetails.CachedTokenCount;
         
         Logger.Debug(
             "OpenAI token usage. Input={InputTokens}, Output={OutputTokens}, Total={TotalTokens}",
@@ -50,11 +51,11 @@ public class GenerateOpenAiBase:GenerateAi
         if (completion.Content.Count > 0)
         {
             Logger.Trace("GenerateAsync completed. ContentCount={ContentCount}", completion.Content.Count);
-            return new GenerateOutput<string>(completion.Content[0].Text, totalTokens, inputTokens, outputTokens, lastCacheInfo);
+            return new GenerateOutput<string>(completion.Content[0].Text, totalTokens, inputTokens, cacheHitTokens, outputTokens, lastCacheInfo);
         }
 
         Logger.Warn("No content returned from OpenAI API");
-        return new GenerateOutput<string>(null, totalTokens, inputTokens, outputTokens, lastCacheInfo);
+        return new GenerateOutput<string>(null, totalTokens, inputTokens, outputTokens, cacheHitTokens, lastCacheInfo);
     }
     
     private static List<ChatMessage> BuildMessages(string prompt, List<GenerateInput> inputs)

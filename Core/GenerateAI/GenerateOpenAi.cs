@@ -57,6 +57,7 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
         int totalToken = response.Usage.TotalTokenCount;
         int inputToken = response.Usage.InputTokenCount;
         int outputToken = response.Usage.OutputTokenCount;
+        int cacheHitToken = response.Usage.InputTokenDetails.CachedTokenCount;
 
         var responseId = response.Id;
         var dateNow = DateTime.UtcNow;
@@ -78,6 +79,7 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
             totalToken,
             inputToken,
             outputToken,
+            cacheHitToken,
             cacheInfo
         );
     }
