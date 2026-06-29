@@ -10,7 +10,7 @@ public abstract class GenerateAi(string modelName, string apiKey, int token = 40
     protected readonly int Token = token;
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     
-    public abstract Task<string> GenerateAsync(string prompt, List<GenerateInput> inputs);
+    public abstract Task<GenerateOutput<string>> GenerateAsync(string prompt, List<GenerateInput> inputs);
     
     protected static string GetApiKey(string keyName)
     {
