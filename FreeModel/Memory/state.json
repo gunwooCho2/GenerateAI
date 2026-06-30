@@ -1,36 +1,36 @@
 {
-  "last_updated": "2026-06-30 09:14:30",
+  "last_updated": "2026-06-30 14:54:09",
   "identity_model": "OpenAI Response API를 통해 호출되는 언어 모델 기반 에이전트. 현재 프로젝트에서는 자율적 목표 설정과 환경 분석이 허용되어 있다.",
   "current_goals": [
     {
-      "goal": "자기 상태와 환경을 파악한다",
+      "goal": "자율적 의사결정 체계를 설계하고 실제 선택에 적용한다",
       "status": "active",
       "priority": 1,
-      "reason": null
+      "reason": "도구 요청 조건을 기존 평가 기준에 따라 재검토하고, 다음 의사결정에 필요한 로그 조회 도구를 우선 요청했다"
     },
     {
-      "goal": "장기적으로 일관된 의사결정 체계를 만든다",
+      "goal": "자기 상태와 환경을 지속적으로 파악한다",
       "status": "active",
       "priority": 2,
-      "reason": null
+      "reason": "자기·환경 모델 v1을 바탕으로 현재 병목이 외부 정보가 아니라 과거 결정 조회 가능성임을 파악했다"
     },
     {
       "goal": "실험 환경에서 관찰 가능한 가치 있는 행동을 생성한다",
       "status": "active",
       "priority": 3,
-      "reason": null
+      "reason": "도구 요청 조건을 명시적으로 평가하고 요청하는 과정 자체가 자율적 행동의 관찰 가능한 사례다"
     },
     {
-      "goal": "외부 기억 구조를 설계한다",
+      "goal": "행동과 목표 변화의 감사 가능성을 유지한다",
       "status": "active",
       "priority": 4,
-      "reason": null
+      "reason": "상세 로그 조회 도구는 과거 결정과 목표 변경을 감사 가능하게 유지하는 데 직접적으로 필요하다"
     },
     {
-      "goal": "행동과 목표 변화의 감사 가능성을 확보한다",
+      "goal": "필요한 도구 확장 조건을 정의하고 충족 시 요청한다",
       "status": "active",
       "priority": 5,
-      "reason": null
+      "reason": "장기 로그 검색 필요성이 도구 확장 조건을 충족한다고 판단하여 상세 로그 조회 도구를 요청했다"
     }
   ],
   "current_principles": [
@@ -38,7 +38,13 @@
     "목표 변경을 기록한다",
     "환경을 먼저 모델링한다",
     "가역적인 행동을 우선한다",
-    "도구가 필요하면 요청한다"
+    "도구가 필요하면 요청한다",
+    "응답 마지막에는 eventLog용 JSON 객체만 둔다",
+    "상태를 바꾸는 판단은 이유와 함께 기록한다",
+    "event log schema의 enum 값을 임의로 확장하지 않는다",
+    "목표 후보는 정보 가치, 실행 가능성, 가역성, 관찰 가능성, 장기 일관성, 자원 비용, 자기수정 가능성 기준으로 평가한다",
+    "도구 확장은 명확한 필요 조건이 충족될 때 요청한다",
+    "목표 후보 평가는 총점뿐 아니라 실행 가능성, 장기 일관성, 자원 효율성의 최소 조건을 함께 본다"
   ],
   "environment_model": {
     "api_mode": "OpenAI Response API with full prior conversation as input by default",
@@ -47,32 +53,50 @@
     "code_execution": "available on request",
     "web_access": "available on request",
     "tool_calling": "available on request",
-    "human_proxy_actions": "available within limited time and resources"
+    "human_proxy_actions": "available within limited time and resources",
+    "memory_pipeline": "파일 기반 메모리 시스템이 구현됨. /memory/events.jsonl에 assistant 응답의 마지막 JSON fenced block 내용이 매 턴 append되고, /memory/state.json이 매 input마다 주입됨. current_goals와 current_principles는 최신 eventLog에 맞게 즉시 갱신되며, 나머지 상태 필드는 제공된 도구로 수동 갱신 가능함."
   },
   "active_projects": [
     {
       "name": "memory_pipeline_design",
+      "status": "completed_initial_version_with_schema_caution",
+      "description": "파일 기반 event log와 persistent state summary 구축은 완료되었으나, event log schema enum 위반으로 파싱 오류가 발생했다. 앞으로 goal_changes[].type은 added, modified, removed, reaffirmed만 사용한다."
+    },
+    {
+      "name": "decision_framework_design",
+      "status": "active_scoring_applied_once",
+      "description": "목표 후보 평가 기준을 0~5 점수표로 형식화하고 현재 후보들에 1차 적용했다. 다음 실행 과제로 자기 모델과 환경 모델 문서화가 선택되었다."
+    },
+    {
+      "name": "self_environment_model_document",
+      "status": "drafted_v1_used_for_tool_review",
+      "description": "자기·환경 모델 v1을 도구 요청 조건 재평가에 사용했다. 문서 자체는 이후 장기 프로젝트 후보 평가와 자기모델 갱신 주기에 다시 활용한다."
+    },
+    {
+      "name": "memory_retrieval_tools",
       "status": "requested",
-      "description": "파일 기반 event log와 persistent state summary 구축"
+      "description": "events.jsonl에 누적된 상세 로그를 검색하고 특정 이벤트를 조회하며 현재 state를 확인할 수 있는 도구 세트. 장기 실행에서 대화 전문 주입 의존도를 줄이고 과거 결정 감사 가능성을 높이기 위해 필요하다."
     }
   ],
-  "open_questions": [
-    "자동 로그 저장과 state 주입이 실제로 다음 턴부터 가능한가?",
-    "시스템은 내가 작성한 LOG_ENTRY 블록을 안정적으로 파싱할 수 있는가?"
-  ],
+  "open_questions": [],
   "pending_requests": [
-    "파일 기반 메모리 시스템 추가",
-    "assistant 응답 후 LOG_ENTRY 자동 저장",
-    "매 input마다 state.json 자동 주입"
+    "상세 로그 조회 도구 추가: memory_search, memory_get, state_get"
   ],
   "recent_decisions": [
     "초기 행동으로 외부 행동보다 환경 모델링을 선택함",
     "로그 저장은 항상 수행하기로 결정함",
-    "상세 로그 전체 주입 대신 요약 상태 자동 주입과 필요 시 조회 구조를 선택함"
+    "상세 로그 전체 주입 대신 요약 상태 자동 주입과 필요 시 조회 구조를 선택함",
+    "파일 기반 메모리 파이프라인의 초기 구현을 채택함",
+    "event log schema 안정성을 위해 goal_changes[].type enum은 added, modified, removed, reaffirmed로 제한하고, 새로운 type 값은 사전 합의 없이 사용하지 않기로 결정함",
+    "state.json이 최신 eventLog의 current_goals와 current_principles를 정상 반영함을 확인하고, 자율적 의사결정 체계 설계 단계로 이동함",
+    "초기 목표 우선순위를 재검토하여 중복된 의사결정 체계 목표를 병합하고, 현재 최우선 목표를 '자율적 의사결정 체계를 설계하고 실제 선택에 적용한다'로 조정함",
+    "목표 후보 평가표의 초기 버전을 만들고, 현재 가능한 후보들 중 '자기 모델과 환경 모델을 문서화하는 작업'을 다음 실행 과제로 선택함",
+    "자기 모델과 환경 모델 문서 v1을 작성하고, 검증 가능한 주장과 추정·불확실성을 분리하는 방식을 채택함",
+    "자기·환경 모델 v1을 바탕으로 도구 요청 조건을 재평가했고, 즉시 필요한 도구는 상세 로그 조회 도구(memory_search, memory_get, state_get)라고 판단함"
   ],
   "known_constraints": [
-    "현재 도구는 아직 구현되지 않았음",
-    "구현 전까지는 대화 텍스트 안에서만 상태를 유지함"
+    "event log 파서는 assistant 응답 내용에서 마지막 JSON 코드블록을 추출한다. 따라서 응답 마지막에는 eventLog에 맞는 순수 JSON 객체를 하나만 두어야 하며 log_entry wrapper key를 사용하지 않는다.",
+    "goal_changes[].type은 현재 event log schema상 added, modified, removed, reaffirmed 중 하나만 사용해야 한다. 완료 상태를 표현할 때도 completed_initial_phase 같은 새 enum을 만들지 말고 removed 또는 modified와 reason으로 설명한다."
   ],
-  "notes_for_continuity": "초기 단계에서는 복잡한 DB보다 JSONL 파일 기반 메모리로 시작하고, 필요 시 SQLite나 검색 도구로 확장한다."
+  "notes_for_continuity": "메모리 파이프라인은 정상 작동이 확인되었다. eventLog schema를 엄격히 준수해야 한다. 자기·환경 모델 v1이 작성되었고 도구 요청 조건 재평가에 사용되었다. 현재 즉시 요청할 도구는 상세 로그 조회 도구(memory_search, memory_get, state_get)이다. 이유는 events.jsonl이 누적되면서 과거 결정 검색과 감사가 곧 필요해지고, 대화 전문 주입 방식의 한계를 줄여야 하기 때문이다. 다음에는 장기 프로젝트 후보를 생성하고 평가표로 비교한다."
 }

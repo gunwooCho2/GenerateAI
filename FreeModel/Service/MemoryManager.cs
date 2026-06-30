@@ -10,10 +10,10 @@ namespace FreeModel.Service;
 
 public static class MemoryManager
 {
-    private const string StateMemoryPath = "C:\\Users\\USER\\RiderProjects\\GenerateAI\\GenerateAI\\FreeModel\\Memory\\state.json";
-    private const string EventMemoryPath = "C:\\Users\\USER\\RiderProjects\\GenerateAI\\GenerateAI\\FreeModel\\Memory\\events.jsonl";
+    private const string StateMemoryPath = "C:\\Users\\Administrator\\RiderProjects\\GenerateAI\\FreeModel\\Memory\\state.json";
+    private const string EventMemoryPath = "C:\\Users\\Administrator\\RiderProjects\\GenerateAI\\FreeModel\\Memory\\events.jsonl";
     private static readonly StateLog StateLog;
-    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
     static MemoryManager()
     {
@@ -22,15 +22,30 @@ public static class MemoryManager
         if (!File.Exists(EventMemoryPath)) File.Create(EventMemoryPath).Close();
     }
 
+    public static string GetStateStr()
+    {
+        string jsonStr = JsonSerializer.Serialize(StateLog, JsonOptions.CompactKorean);
+        return $"[State]\n{jsonStr}\n[UserMessage]\n";
+    }
     public static void SaveMemory(string message)
     {
-        var lastEventNode = GetLastEvent();
-        int turn = lastEventNode?["turn_index"]?.GetValue<int>() ?? 0;
-        
         var lastJsonStr = GetLastJsonStr(message);
         if (lastJsonStr == null) return;
 
-        var eventLog = GetEventLog(lastJsonStr, turn);
+        var eventLog = GetEventLog(lastJsonStr);
+        if (eventLog == null) return;
+        
+        WriteEvent(JsonSerializer.Serialize(eventLog, JsonOptions.CompactKorean));
+        StateLog.LastUpdated = eventLog.Timestamp;
+        StateLog.CurrentGoals = eventLog.CurrentGoals;
+        StateLog.CurrentPrinciples = eventLog.CurrentPrinciples;
+        WriteState();
+    }
+
+    public static void SavePassiveMemory(string eventJsonStr)
+    {
+        
+        var eventLog = GetEventLog(eventJsonStr);
         if (eventLog == null) return;
         
         WriteEvent(JsonSerializer.Serialize(eventLog, JsonOptions.CompactKorean));
@@ -264,7 +279,7 @@ public static class MemoryManager
             return null;
         }
     }
-    private static EventLog? GetEventLog(string eventJsonStr, int turn)
+    private static EventLog? GetEventLog(string eventJsonStr)
     {
         try
         {
@@ -275,7 +290,6 @@ public static class MemoryManager
                 return null;
             }
             eventLog.Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-            eventLog.TurnIndex = ++turn;
             return eventLog;
         }
         catch (JsonException ex)

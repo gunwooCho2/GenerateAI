@@ -1,5 +1,6 @@
 ﻿using Core.Dto;
 using Core.Enum;
+using Core.Interface;
 using NLog;
 using OpenAI;
 using OpenAI.Chat;
@@ -57,7 +58,12 @@ public class GenerateOpenAiBase:GenerateAi
         Logger.Warn("No content returned from OpenAI API");
         return new GenerateOutput<string>(null, totalTokens, inputTokens, outputTokens, cacheHitTokens, lastCacheInfo);
     }
-    
+
+    public override async Task<GenerateOutput<string>> GenerateUseToolAsync(string prompt, List<GenerateInput> inputs, List<IToolInfo> tools)
+    {
+        throw new NotImplementedException();
+    }
+
     private static List<ChatMessage> BuildMessages(string prompt, List<GenerateInput> inputs)
     {
         List<ChatMessage> messages =

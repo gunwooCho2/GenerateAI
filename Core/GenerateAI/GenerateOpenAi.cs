@@ -1,7 +1,10 @@
 ﻿#pragma warning disable OPENAI001
 
+using System.Text.Json;
 using Core.Dto;
 using Core.Enum;
+using Core.Interface;
+using FreeModel.Dto.ToolOutput;
 using OpenAI.Responses;
 
 namespace Core.GenerateAI;
@@ -9,6 +12,7 @@ namespace Core.GenerateAI;
 public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(modelName, GetApiKey("OPENAI_API_KEY"), token)
 {
     private readonly ResponsesClient _client = new(apiKey: GetApiKey("OPENAI_API_KEY"));
+    private const int MaxToolCall = 10;
     public override async Task<GenerateOutput<string>> GenerateAsync(string prompt, List<GenerateInput> inputs)
     {
         CreateResponseOptions options = new CreateResponseOptions
@@ -17,6 +21,95 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
             Instructions = prompt,
             MaxOutputTokenCount = Token
         };
+        ResponseResult response = await GetResponse(options, inputs);
+        return GetGenerateOutput<string>(response);
+    }
+
+    public override async Task<GenerateOutput<string>> GenerateUseToolAsync(string prompt, List<GenerateInput> inputs, List<IToolInfo> tools)
+    {
+        var toolMap = tools.ToDictionary(x => x.FunctionName);
+        
+        int totalToken = 0;
+        int inputToken = 0;
+        int outputToken = 0;
+        int cacheHitToken = 0;
+        
+        CreateResponseOptions options = new CreateResponseOptions
+        {
+            Model = ModelName,
+            Instructions = prompt,
+            MaxOutputTokenCount = Token
+        };
+        foreach (var tool in tools)
+            options.Tools.Add(tool.FunctionTool);
+        
+        ResponseResult response = await GetResponse(options, inputs);
+        int toolCallCount = 0;
+        
+        while (true)
+        {
+            options.PreviousResponseId = response.Id;
+            options.InputItems.Clear();
+            bool hasToolCall = false;
+
+            foreach (ResponseItem item in response.OutputItems)
+            {
+                if (item is not FunctionCallResponseItem functionCall)
+                    continue;
+
+                hasToolCall = true;
+
+                if (!toolMap.TryGetValue(functionCall.FunctionName, out var toolInfo))
+                {
+                    options.InputItems.Add(new FunctionCallOutputResponseItem(
+                        functionCall.CallId,
+                        JsonSerializer.Serialize(
+                            new ToolEnd
+                            {
+                                IsSuccess = false,
+                                Message = $"Unknown tool {functionCall.FunctionName}"
+                            })));
+                    continue;
+                }
+
+                ToolEnd toolResult;
+
+                try
+                {
+                    toolResult = toolInfo.Invoke(functionCall.FunctionArguments.ToString());
+                }
+                catch (Exception ex)
+                {
+                    toolResult = new ToolEnd
+                    {
+                        IsSuccess = false,
+                        Message = ex.Message
+                    };
+                }
+
+                options.InputItems.Add(new FunctionCallOutputResponseItem(
+                    functionCall.CallId,
+                    JsonSerializer.Serialize(toolResult)));
+            }
+
+            if (!hasToolCall)
+                return GetGenerateOutput<string>(response, totalToken, inputToken, outputToken, cacheHitToken);
+            
+            toolCallCount++;
+            totalToken += response.Usage.TotalTokenCount;
+            inputToken += response.Usage.InputTokenCount;
+            outputToken += response.Usage.OutputTokenCount;
+            cacheHitToken += response.Usage.InputTokenDetails.CachedTokenCount;
+            
+            if (toolCallCount > MaxToolCall)
+                throw new Exception("Tool call loop exceeded.");
+            
+            response = await _client.CreateResponseAsync(options);
+        }
+    }
+
+    private async Task<ResponseResult> GetResponse(CreateResponseOptions options, List<GenerateInput> inputs)
+    {
         var orderedInputs = inputs.OrderBy(x => x.Turn).ToList();
         int cachedIndex = CachedIndex(orderedInputs);
         
@@ -27,10 +120,9 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
         }
 
         BuildMessages(options, orderedInputs, cachedIndex); 
-        ResponseResult response = await _client.CreateResponseAsync(options);
-        return GetGenerateOutput<string>(response);
+        return await _client.CreateResponseAsync(options);
     }
-    
+
     private int CachedIndex(List<GenerateInput> orderedInputs)
     {
         int firstInvalidIndex = orderedInputs.FindIndex(x =>
@@ -52,7 +144,7 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
         }
     }
     
-    private static GenerateOutput<T> GetGenerateOutput<T>(ResponseResult response)
+    private static GenerateOutput<T> GetGenerateOutput<T>(ResponseResult response, int previousTokenCount = 0, int inputTokenCount = 0, int outputTokenCount = 0, int cacheHitTokenCount = 0)
     {
         int totalToken = response.Usage.TotalTokenCount;
         int inputToken = response.Usage.InputTokenCount;

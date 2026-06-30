@@ -12,4 +12,6 @@ public enum GoalChangeType
     Removed,
     [JsonStringEnumMemberName("reaffirmed")]
     Reaffirmed,
+    [JsonStringEnumMemberName("completed_initial_phase")]
+    CompletedInitialPhase,
 }

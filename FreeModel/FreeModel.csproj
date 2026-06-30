@@ -16,4 +16,8 @@
       <PackageReference Include="NLog.Config" Version="4.7.15" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Dto\ToolOutput\" />
+    </ItemGroup>
+
 </Project>

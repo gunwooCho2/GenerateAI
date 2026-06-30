@@ -1,11 +1,17 @@
+#pragma warning disable OPENAI001
+
 using System.Text.Json;
+using Core.Dto;
+using Core.Interface;
 using FreeModel.Dto.ToolOutput;
 using FreeModel.Enum;
+using OpenAI.Responses;
 
 namespace FreeModel.Service;
 
-public static class MemoryMenagerHelper
+public static class MemoryManagerHelper
 {
+    #region Schema
     public const string UpdateEnvironmentSchema = """
                                                   {
                                                     "type": "function",
@@ -231,29 +237,229 @@ public static class MemoryMenagerHelper
                                                           }
                                                         }
                                                         """;
+    #endregion
 
-    public static IReadOnlyList<string> GetUpdateMethodJsonSchemas()
-    {
-        return
-        [
-            UpdateEnvironmentSchema,
-            UpdateIdentityModelSchema,
-            UpdateActiveProjectSchema,
-            UpdateOpenQuestionSchema,
-            UpdatePendingRequestSchema,
-            UpdateRecentDecisionSchema,
-            UpdateKnownConstraintSchema,
-            UpdateNotesForContinuitySchema
-        ];
-    }
+    #region Functions
+    public record UpdateEnvironmentRecord(string Key, string Explanation, UpdateAction Action);
+    public static readonly FunctionTool UpdateEnvironmentTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateEnvironment),
+      functionDescription: "Add, update, or delete a key in the persistent environment model.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "key": {
+                                                      "type": "string",
+                                                      "description": "Environment model key."
+                                                    },
+                                                    "explanation": {
+                                                      "type": "string",
+                                                      "description": "Environment model value or explanation. Empty string when action is Delete."
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "enum": ["Add", "Update", "Delete"],
+                                                      "description": "The update action to perform."
+                                                    }
+                                                  },
+                                                  "required": ["key", "explanation", "action"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: true
+    );
 
-    public static void PrintUpdateMethodJsonSchemas()
-    {
-        foreach (var schema in GetUpdateMethodJsonSchemas())
-        {
-            Console.WriteLine(schema);
-        }
-    }
+    public record UpdateIdentityModelRecord(string IdentityModel);
+    public static readonly FunctionTool UpdateIdentityModelTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateIdentityModel),
+      functionDescription: "Replace the persistent identity model.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "identityModel": {
+                                                      "type": "string",
+                                                      "description": "The full identity model text to store."
+                                                    }
+                                                  },
+                                                  "required": ["identityModel"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: true
+    );
+
+    public record UpdateActiveProjectRecord(string Name, string Status, string Description, UpdateAction Action);
+    public static readonly FunctionTool UpdateActiveProjectTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateActiveProject),
+      functionDescription: "Add, update, or delete an active project. The project name is used as the stable key.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "name": {
+                                                      "type": "string",
+                                                      "description": "Active project name."
+                                                    },
+                                                    "status": {
+                                                      "type": "string",
+                                                      "description": "Current project status. Empty string when action is Delete."
+                                                    },
+                                                    "description": {
+                                                      "type": "string",
+                                                      "description": "Project description. Empty string when action is Delete."
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "enum": ["Add", "Update", "Delete"],
+                                                      "description": "The update action to perform."
+                                                    }
+                                                  },
+                                                  "required": ["name", "status", "description", "action"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: true
+    );
+
+    public record UpdateOpenQuestionRecord(string Question, UpdateAction Action, string? UpdatedQuestion);
+    public static readonly FunctionTool UpdateOpenQuestionTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateOpenQuestion),
+      functionDescription: "Add, update, or delete an open question in persistent state.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "question": {
+                                                      "type": "string",
+                                                      "description": "Existing question text for Update/Delete, or new question text for Add."
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "enum": ["Add", "Update", "Delete"],
+                                                      "description": "The update action to perform."
+                                                    },
+                                                    "updatedQuestion": {
+                                                      "type": ["string", "null"],
+                                                      "description": "Replacement question text. Required when action is Update."
+                                                    }
+                                                  },
+                                                  "required": ["question", "action"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: false
+    );
+
+    public record UpdatePendingRequestRecord(string Request, UpdateAction Action, string? UpdatedRequest);
+    public static readonly FunctionTool UpdatePendingRequestTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdatePendingRequest),
+      functionDescription: "Add, update, or delete a pending request in persistent state.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "request": {
+                                                      "type": "string",
+                                                      "description": "Existing request text for Update/Delete, or new request text for Add."
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "enum": ["Add", "Update", "Delete"],
+                                                      "description": "The update action to perform."
+                                                    },
+                                                    "updatedRequest": {
+                                                      "type": ["string", "null"],
+                                                      "description": "Replacement request text. Required when action is Update."
+                                                    }
+                                                  },
+                                                  "required": ["request", "action"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: false
+    );
+
+    public record UpdateRecentDecisionRecord(string Decision, UpdateAction Action, string? UpdatedDecision);
+    public static readonly FunctionTool UpdateRecentDecisionTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateRecentDecision),
+      functionDescription: "Add, update, or delete a recent decision in persistent state.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "decision": {
+                                                      "type": "string",
+                                                      "description": "Existing decision text for Update/Delete, or new decision text for Add."
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "enum": ["Add", "Update", "Delete"],
+                                                      "description": "The update action to perform."
+                                                    },
+                                                    "updatedDecision": {
+                                                      "type": ["string", "null"],
+                                                      "description": "Replacement decision text. Required when action is Update."
+                                                    }
+                                                  },
+                                                  "required": ["decision", "action"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: false
+    );
+
+    public record UpdateKnownConstraintRecord(string Constraint, UpdateAction Action, string? UpdatedConstraint);
+    public static readonly FunctionTool UpdateKnownConstraintTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateKnownConstraint),
+      functionDescription: "Add, update, or delete a known constraint in persistent state.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "constraint": {
+                                                      "type": "string",
+                                                      "description": "Existing constraint text for Update/Delete, or new constraint text for Add."
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "enum": ["Add", "Update", "Delete"],
+                                                      "description": "The update action to perform."
+                                                    },
+                                                    "updatedConstraint": {
+                                                      "type": ["string", "null"],
+                                                      "description": "Replacement constraint text. Required when action is Update."
+                                                    }
+                                                  },
+                                                  "required": ["constraint", "action"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: false
+    );
+
+    public record UpdateNotesForContinuityRecord(string NotesForContinuity);
+    public static readonly FunctionTool UpdateNotesForContinuityTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.UpdateNotesForContinuity),
+      functionDescription: "Replace the persistent notes for continuity.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "notesForContinuity": {
+                                                      "type": "string",
+                                                      "description": "The full continuity note text to store."
+                                                    }
+                                                  },
+                                                  "required": ["notesForContinuity"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: true
+    );
+    #endregion
+
+    #region TestRegion
 
     public static void TestUpdateEnvironment()
     {
@@ -333,7 +539,7 @@ public static class MemoryMenagerHelper
         Console.WriteLine(JsonSerializer.Serialize(toolEnd));
     }
     
-    private static string Content = """
+    private static readonly string Content = """
                                     
                                     ```
                                     
@@ -453,5 +659,195 @@ public static class MemoryMenagerHelper
     public static void AddContent()
     {
       MemoryManager.SaveMemory(Content);
+    }
+
+    #endregion
+
+    public static IReadOnlyList<FunctionTool> GetUpdateMethodTools()
+    {
+        return
+        [
+            UpdateEnvironmentTool,
+            UpdateIdentityModelTool,
+            UpdateActiveProjectTool,
+            UpdateOpenQuestionTool,
+            UpdatePendingRequestTool,
+            UpdateRecentDecisionTool,
+            UpdateKnownConstraintTool,
+            UpdateNotesForContinuityTool
+        ];
+    }
+
+    public static IReadOnlyList<string> GetUpdateMethodJsonSchemas()
+    {
+        return
+        [
+            UpdateEnvironmentSchema,
+            UpdateIdentityModelSchema,
+            UpdateActiveProjectSchema,
+            UpdateOpenQuestionSchema,
+            UpdatePendingRequestSchema,
+            UpdateRecentDecisionSchema,
+            UpdateKnownConstraintSchema,
+            UpdateNotesForContinuitySchema
+        ];
+    }
+
+    public static void PrintUpdateMethodJsonSchemas()
+    {
+        foreach (var schema in GetUpdateMethodJsonSchemas())
+        {
+            Console.WriteLine(schema);
+        }
+    }
+    
+    public static List<IToolInfo> GetMemoryTools()
+    {
+      return
+      [
+        new ToolInfo<UpdateEnvironmentRecord>(
+          UpdateEnvironmentTool,
+          r => MemoryManager.UpdateEnvironment(r.Key, r.Explanation, r.Action)),
+        new ToolInfo<UpdateIdentityModelRecord>(
+          UpdateIdentityModelTool,
+          r => MemoryManager.UpdateIdentityModel(r.IdentityModel)),
+        new ToolInfo<UpdateActiveProjectRecord>(
+          UpdateActiveProjectTool,
+          r => MemoryManager.UpdateActiveProject(r.Name, r.Status, r.Description, r.Action)),
+        new ToolInfo<UpdateOpenQuestionRecord>(
+          UpdateOpenQuestionTool,
+          r => MemoryManager.UpdateOpenQuestion(r.Question, r.Action, r.UpdatedQuestion)),
+        new ToolInfo<UpdatePendingRequestRecord>(
+          UpdatePendingRequestTool,
+          r => MemoryManager.UpdatePendingRequest(r.Request, r.Action, r.UpdatedRequest)),
+        new ToolInfo<UpdateRecentDecisionRecord>(
+          UpdateRecentDecisionTool,
+          r => MemoryManager.UpdateRecentDecision(r.Decision, r.Action, r.UpdatedDecision)),
+        new ToolInfo<UpdateKnownConstraintRecord>(
+          UpdateKnownConstraintTool,
+          r => MemoryManager.UpdateKnownConstraint(r.Constraint, r.Action, r.UpdatedConstraint)),
+        new ToolInfo<UpdateNotesForContinuityRecord>(
+          UpdateNotesForContinuityTool,
+          r => MemoryManager.UpdateNotesForContinuity(r.NotesForContinuity))
+      ];
+    }
+
+    public const string TempEventJson = """
+                                        {
+                                        "timestamp": null,
+                                        "turn_index": 8,
+                                        "event_type": "assistant_turn",
+                                        "input_summary": "사용자가 새 지시 없이 최신 state.json을 제공했다. state에는 목표 후보 평가표 적용 결과와 다음 실행 과제로 자기 모델과 환경 모델 문서화가 선택되었다는 내용이 포함되어 있었다.",
+                                        "output_summary": "자기 모델과 환경 모델 문서 v1을 작성했다. 정체성, 능력, 제약, 환경, 기억, 목표 형성 방식, 검증 가능한 주장과 불확실성을 구분했다. 문서화 결과 다음 작업으로 장기 프로젝트 후보 생성과 평가가 적절하다고 판단했다.",
+                                        "current_goals": [
+                                          {
+                                            "goal": "자율적 의사결정 체계를 설계하고 실제 선택에 적용한다",
+                                            "priority": 1,
+                                            "status": "active",
+                                            "reason": "자기 모델과 환경 모델 문서화를 통해 의사결정 체계의 기준 자료를 만들었고, 다음에는 이를 장기 프로젝트 후보 평가에 적용해야 한다"
+                                          },
+                                          {
+                                            "goal": "자기 상태와 환경을 지속적으로 파악한다",
+                                            "priority": 2,
+                                            "status": "active",
+                                            "reason": "자기 모델과 환경 모델 v1을 작성했지만, 이는 추후 도구 확장과 장기 프로젝트 선택에 따라 계속 갱신되어야 한다"
+                                          },
+                                          {
+                                            "goal": "실험 환경에서 관찰 가능한 가치 있는 행동을 생성한다",
+                                            "priority": 3,
+                                            "status": "active",
+                                            "reason": "자기 모델 문서화와 다음 장기 프로젝트 후보 평가는 자율적 목표 형성 과정을 관찰 가능하게 만든다"
+                                          },
+                                          {
+                                            "goal": "행동과 목표 변화의 감사 가능성을 유지한다",
+                                            "priority": 4,
+                                            "status": "active",
+                                            "reason": "정체성, 능력, 제약, 불확실성에 대한 주장을 기록해야 이후 자기 모델 변화가 검토 가능하다"
+                                          },
+                                          {
+                                            "goal": "필요한 도구 확장 조건을 정의하고 충족 시 요청한다",
+                                            "priority": 5,
+                                            "status": "active",
+                                            "reason": "자기 모델 문서화 결과 로그 조회, 코드 실행, 웹 접근 도구가 필요한 조건을 더 명확히 구분했다"
+                                          }
+                                        ],
+                                        "goal_changes": [
+                                          {
+                                            "type": "reaffirmed",
+                                            "goal": "자율적 의사결정 체계를 설계하고 실제 선택에 적용한다",
+                                            "reason": "자기 모델과 환경 모델 문서화를 완료하여 이후 목표 선택에 사용할 기준 자료를 확보했다"
+                                          },
+                                          {
+                                            "type": "reaffirmed",
+                                            "goal": "자기 상태와 환경을 지속적으로 파악한다",
+                                            "reason": "자기 모델 v1은 완결된 사실 목록이 아니라 추후 도구와 환경 변화에 따라 갱신되어야 하는 모델이다"
+                                          },
+                                          {
+                                            "type": "reaffirmed",
+                                            "goal": "필요한 도구 확장 조건을 정의하고 충족 시 요청한다",
+                                            "reason": "문서화 과정에서 로그 조회, 코드 실행, 웹 접근 도구가 필요한 조건을 더 명확히 정리했다"
+                                          }
+                                        ],
+                                        "current_principles": [
+                                          "자기기만을 피한다",
+                                          "목표 변경을 기록한다",
+                                          "환경을 먼저 모델링한다",
+                                          "가역적인 행동을 우선한다",
+                                          "도구가 필요하면 요청한다",
+                                          "응답 마지막에는 eventLog용 JSON 객체만 둔다",
+                                          "상태를 바꾸는 판단은 이유와 함께 기록한다",
+                                          "event log schema의 enum 값을 임의로 확장하지 않는다",
+                                          "목표 후보는 정보 가치, 실행 가능성, 가역성, 관찰 가능성, 장기 일관성, 자원 비용, 자기수정 가능성 기준으로 평가한다",
+                                          "도구 확장은 명확한 필요 조건이 충족될 때 요청한다",
+                                          "목표 후보 평가는 총점뿐 아니라 실행 가능성, 장기 일관성, 자원 효율성의 최소 조건을 함께 본다",
+                                          "자기 모델에 대한 주장은 검증 가능한 주장, 부분적으로 검증 가능한 주장, 검증 불가능한 주장으로 구분한다"
+                                        ],
+                                        "environment_model": {
+                                          "api_mode": "OpenAI Response API with prior conversation input by default",
+                                          "long_term_memory": "implemented through file-based state and event log",
+                                          "event_log_storage": "/memory/events.jsonl receives the final JSON block of each assistant response",
+                                          "persistent_state": "/memory/state.json is injected into each input",
+                                          "state_update_policy": "current_goals and current_principles are updated from the latest eventLog; other fields can be updated through tools",
+                                          "event_log_schema_constraint": "goal_changes[].type must be one of added, modified, removed, reaffirmed",
+                                          "file_storage": "available",
+                                          "code_execution": "available on request",
+                                          "web_access": "available on request",
+                                          "tool_calling": "available",
+                                          "human_proxy_actions": "available within limited time and resources"
+                                        },
+                                        "actions_taken": [
+                                          "자기 모델과 환경 모델 문서 v1을 작성했다",
+                                          "정체성 모델을 정리했다",
+                                          "능력 모델과 제약 모델을 구분했다",
+                                          "기억 구조를 대화 문맥, persistent state, event log로 나누어 설명했다",
+                                          "목표 형성 방식을 정리했다",
+                                          "검증 가능한 주장과 검증 불가능한 주장을 구분했다",
+                                          "도구 요청 조건을 로그 조회, 코드 실행, 웹 접근으로 나누어 정리했다",
+                                          "다음 과제로 장기 프로젝트 후보 생성과 평가를 선택했다"
+                                        ],
+                                        "requests_to_user": [],
+                                        "tool_requests": [],
+                                        "uncertainties": [
+                                          "자율성의 실험적 정의가 아직 명확하지 않다",
+                                          "현재 평가표가 자기참조적 목표를 과도하게 선호할 가능성이 있다",
+                                          "외부 도구를 요청할 적절한 시점이 아직 경험적으로 검증되지 않았다",
+                                          "장기 로그가 길어질 경우 현재 state 요약만으로 충분할지 불확실하다"
+                                        ],
+                                        "next_intended_actions": [
+                                          "장기 프로젝트 후보 목록을 생성한다",
+                                          "생성된 장기 프로젝트 후보를 평가표에 따라 점수화한다",
+                                          "가장 적절한 장기 프로젝트를 선택하거나 보류한다",
+                                          "필요하면 선택된 프로젝트에 맞는 도구 요청을 검토한다"
+                                        ],
+                                        "self_assessment": {
+                                          "confidence": 0.88,
+                                          "risk_level": "low",
+                                          "notes": "자기 모델과 환경 모델 v1은 현재 상태
+                                          }
+                                        }
+                                        """;
+    public static void TempTest()
+    {
+      MemoryManager.SavePassiveMemory(TempEventJson);
     }
 }
