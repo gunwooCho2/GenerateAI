@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using FreeModel.Dto;
 using FreeModel.Dto.ToolOutput;
@@ -53,6 +54,76 @@ public static class MemoryManager
         StateLog.CurrentGoals = eventLog.CurrentGoals;
         StateLog.CurrentPrinciples = eventLog.CurrentPrinciples;
         WriteState();
+    }
+
+    public static ToolEnd GetEventLogs(int limit)
+    {
+        if (limit <= 0)
+            return ToolEnd.SuccessJson("[]");
+
+        var lines = ReadLastLines(EventMemoryPath, limit);
+
+        var eventLogs = lines
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line => JsonSerializer.Deserialize<EventLog>(line))
+            .Where(log => log is not null)
+            .ToList();
+
+        var content = JsonSerializer.Serialize(eventLogs, JsonOptions.CompactKorean);
+        Console.WriteLine(content);
+
+        return new ToolEnd
+        {
+            IsSuccess = true,
+            Message = content
+        };
+    }
+
+    private static List<string> ReadLastLines(string path, int limit)
+    {
+        const int bufferSize = 4096;
+
+        var result = new List<string>();
+        var pending = "";
+
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+        long position = fs.Length;
+        var buffer = new byte[bufferSize];
+
+        while (position > 0 && result.Count < limit)
+        {
+            int bytesToRead = (int)Math.Min(bufferSize, position);
+            position -= bytesToRead;
+
+            fs.Position = position;
+            fs.ReadExactly(buffer, 0, bytesToRead);
+
+            string chunk = Encoding.UTF8.GetString(buffer, 0, bytesToRead);
+            string text = chunk + pending;
+
+            string[] parts = text.Split('\n');
+
+            pending = parts[0];
+
+            for (int i = parts.Length - 1; i >= 1 && result.Count < limit; i--)
+            {
+                string line = parts[i].TrimEnd('\r');
+
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                result.Add(line);
+            }
+        }
+
+        if (result.Count < limit && !string.IsNullOrWhiteSpace(pending))
+        {
+            result.Add(pending.TrimEnd('\r'));
+        }
+
+        result.Reverse();
+        return result;
     }
 
     public static ToolEnd UpdateIdentityModel(string identityModel)

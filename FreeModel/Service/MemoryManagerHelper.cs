@@ -240,6 +240,25 @@ public static class MemoryManagerHelper
     #endregion
 
     #region Functions
+    public record GetEventLogsRecord(int Limit);
+    public static readonly FunctionTool GetEventLogsTool = ResponseTool.CreateFunctionTool(
+      functionName: nameof(MemoryManager.GetEventLogs),
+      functionDescription: "Get the latest event logs from persistent event memory.",
+      functionParameters: BinaryData.FromString("""
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "limit": {
+                                                      "type": "integer",
+                                                      "description": "Maximum number of latest event logs to retrieve. Must be greater than 0."
+                                                    }
+                                                  },
+                                                  "required": ["limit"],
+                                                  "additionalProperties": false
+                                                }
+                                                """),
+      strictModeEnabled: true
+    );
     public record UpdateEnvironmentRecord(string Key, string Explanation, UpdateAction Action);
     public static readonly FunctionTool UpdateEnvironmentTool = ResponseTool.CreateFunctionTool(
       functionName: nameof(MemoryManager.UpdateEnvironment),
@@ -460,6 +479,11 @@ public static class MemoryManagerHelper
     #endregion
 
     #region TestRegion
+
+    public static void TestGetEventLogs()
+    {
+        PrintResult(MemoryManager.GetEventLogs(10));
+    }
 
     public static void TestUpdateEnvironment()
     {
@@ -705,6 +729,9 @@ public static class MemoryManagerHelper
     {
       return
       [
+        new ToolInfo<GetEventLogsRecord>(
+          GetEventLogsTool,
+          r => MemoryManager.GetEventLogs(r.Limit)),
         new ToolInfo<UpdateEnvironmentRecord>(
           UpdateEnvironmentTool,
           r => MemoryManager.UpdateEnvironment(r.Key, r.Explanation, r.Action)),

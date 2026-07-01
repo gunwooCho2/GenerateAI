@@ -13,7 +13,7 @@ public static class LogManager
 {
     private const string LogDirPath = "C:\\Users\\USER\\RiderProjects\\GenerateAI\\GenerateAI\\FreeModel\\Logs";
     private const string GenerateInfosPath = "C:\\Users\\USER\\RiderProjects\\GenerateAI\\GenerateAI\\FreeModel\\Logs\\GenerateInfos.jsonl";
-    private static readonly GenerateAi GenerateAi = new GenerateOpenAi("gpt-5.5");
+    private static readonly GenerateAi GenerateAi = new GenerateOpenAi("gpt-5.5", token:8192);
     private static readonly Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
     public static async Task<string> GenerateContent(string inputMessage)

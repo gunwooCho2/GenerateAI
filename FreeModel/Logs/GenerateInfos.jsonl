@@ -6,3 +6,6 @@
 {"turn":7,"total_tokens":25565,"input_tokens":22454,"output_tokens":3111,"cache_hit_tokens":21504,"previous_id":"resp_0be6596437420090006a447d6529208199a5e4213b1b57e541"}
 {"turn":8,"total_tokens":29683,"input_tokens":27245,"output_tokens":2438,"cache_hit_tokens":26112,"previous_id":"resp_0be6596437420090006a447f207a7081998f6470cf7f198627"}
 {"turn":9,"total_tokens":34118,"input_tokens":31473,"output_tokens":2645,"cache_hit_tokens":30720,"previous_id":"resp_0be6596437420090006a4483168ab48199bb6ceb913ad5230d"}
+{"turn":10,"total_tokens":39082,"input_tokens":36202,"output_tokens":2880,"cache_hit_tokens":34816,"previous_id":"resp_0be6596437420090006a4486966af88199905e9535fa0f3aca"}
+{"turn":11,"total_tokens":43825,"input_tokens":41005,"output_tokens":2820,"cache_hit_tokens":39936,"previous_id":"resp_0be6596437420090006a4488a3e0588199b5bdcbb35fa5ab9f"}
+{"turn":12,"total_tokens":73782,"input_tokens":70279,"output_tokens":3503,"cache_hit_tokens":69120,"previous_id":"resp_0be6596437420090006a4490e719b88199b9c1353556823415"}
