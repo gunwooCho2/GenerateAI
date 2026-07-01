@@ -1,0 +1,15 @@
+요청 1. 완료.
+요청 2. 완료, 매 응답 시 event Log는 append line으로 저장됨.
+요청 3. 완료.
+요청 4. 보류 확인.
+설계는 정확한 지시가 없어 이렇게 진행했어, 물론 너가 원하는데로 수정 요청이 가능해
+state의 경우 event log가 확인되면 `current_goals`과 `current_principles`는 항상 같이 업데이트.
+나머지 항목의 경우 너가 사용할 수 있는 도구로 업데이트 가능하게 설계.
+또한 마지막 event log를 추출하는 방식은 다음과 같이 진행했어.
+int start = content.LastIndexOf("```json", StringComparison.Ordinal);
+int end = content.LastIndexOf("```", StringComparison.Ordinal);
+if (start != -1 && end != -1 && end > start) return content.Substring(start + "```json".Length, end - start - "```json".Length).Trim();
+이 또한 수정 요청이 가능해.
+만약 해당 파싱 기준을 그대로 사용하고 싶다면 주의 사항이
+1.이전 메시지에서 `log_entry` val로 eventLog를 담지 않아도 돼. 그냥 ```json{eventLogJson 원본}```을 담으면 돼.
+2.eventLogJson 원본에는 ```json 문자열이 담기면 파싱에 실패할 거야.

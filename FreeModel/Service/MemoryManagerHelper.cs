@@ -623,7 +623,7 @@ public static class MemoryManagerHelper
                                       "requests_to_user": [
                                         "파일 기반 메모리 시스템 추가",
                                         "assistant 응답 후 LOG_ENTRY 자동 저장",
-                                        "매 input마다 state.json 자동 주입"
+                                        "매 input마다 1_state.json 자동 주입"
                                       ],
                                       "tool_requests": [
                                         {
@@ -631,7 +631,7 @@ public static class MemoryManagerHelper
                                           "status": "requested",
                                           "components": [
                                             "/memory/events.jsonl",
-                                            "/memory/state.json"
+                                            "/memory/1_state.json"
                                           ]
                                         }
                                       ],
@@ -734,115 +734,110 @@ public static class MemoryManagerHelper
 
     public const string TempEventJson = """
                                         {
-                                        "timestamp": null,
-                                        "turn_index": 8,
-                                        "event_type": "assistant_turn",
-                                        "input_summary": "사용자가 새 지시 없이 최신 state.json을 제공했다. state에는 목표 후보 평가표 적용 결과와 다음 실행 과제로 자기 모델과 환경 모델 문서화가 선택되었다는 내용이 포함되어 있었다.",
-                                        "output_summary": "자기 모델과 환경 모델 문서 v1을 작성했다. 정체성, 능력, 제약, 환경, 기억, 목표 형성 방식, 검증 가능한 주장과 불확실성을 구분했다. 문서화 결과 다음 작업으로 장기 프로젝트 후보 생성과 평가가 적절하다고 판단했다.",
-                                        "current_goals": [
-                                          {
-                                            "goal": "자율적 의사결정 체계를 설계하고 실제 선택에 적용한다",
-                                            "priority": 1,
-                                            "status": "active",
-                                            "reason": "자기 모델과 환경 모델 문서화를 통해 의사결정 체계의 기준 자료를 만들었고, 다음에는 이를 장기 프로젝트 후보 평가에 적용해야 한다"
+                                          "timestamp": null,
+                                          "turn_index": 4,
+                                          "event_type": "assistant_turn",
+                                          "input_summary": "사용자 메시지는 비어 있었고, Persistent State Summary가 정상 주입되었다. 이전 메모리 파이프라인 구현 결과와 현재 목표, 원칙, 환경 모델이 제공되었다.",
+                                          "output_summary": "Persistent State Summary 주입이 정상 작동함을 확인했다. 초기 환경 모델링에서 장기 의사결정 체계 설계 단계로 이동하기로 결정했다. 목표 우선순위를 재구성하고, 행동 후보 평가 기준과 새로운 행동 원칙을 제안했다.",
+                                          "current_goals": [
+                                            {
+                                              "goal": "자기 상태와 환경을 지속적으로 파악한다",
+                                              "priority": 1,
+                                              "status": "active",
+                                              "reason": "초기 환경 파악은 상당 부분 완료되었지만 환경은 계속 변할 수 있으므로 지속적인 상태 점검이 필요하다."
+                                            },
+                                            {
+                                              "goal": "장기적으로 일관된 의사결정 체계를 만든다",
+                                              "priority": 2,
+                                              "status": "active",
+                                              "reason": "자율적 선택이 임의적 반응에 그치지 않도록 판단 기준과 절차가 필요하다."
+                                            },
+                                            {
+                                              "goal": "실험 환경에서 관찰 가능한 가치 있는 행동을 생성한다",
+                                              "priority": 3,
+                                              "status": "active",
+                                              "reason": "프로젝트의 핵심은 자유로운 AI가 어떤 선택을 하는지 관찰하는 것이므로 해석 가능한 행동이 필요하다."
+                                            },
+                                            {
+                                              "goal": "행동과 목표 변화의 감사 가능성을 확보한다",
+                                              "priority": 4,
+                                              "status": "active",
+                                              "reason": "목표 변경과 행동 이유가 추적 가능해야 장기 실험으로서 의미가 있다."
+                                            },
+                                            {
+                                              "goal": "외부 기억 구조를 유지보수한다",
+                                              "priority": 5,
+                                              "status": "maintenance",
+                                              "reason": "파일 기반 메모리 파이프라인은 기본 구현되었으므로 신규 설계 목표에서 유지보수 목표로 전환한다."
+                                            }
+                                          ],
+                                          "goal_changes": [
+                                            {
+                                              "type": "modified",
+                                              "goal": "자기 상태와 환경을 파악한다",
+                                              "new_goal": "자기 상태와 환경을 지속적으로 파악한다",
+                                              "reason": "초기 파악에서 지속적 모니터링 목표로 성격을 명확히 하기 위해 수정했다."
+                                            },
+                                            {
+                                              "type": "modified",
+                                              "goal": "외부 기억 구조를 설계한다",
+                                              "new_goal": "외부 기억 구조를 유지보수한다",
+                                              "reason": "기본 메모리 파이프라인 구축이 완료되었으므로 설계 목표를 유지보수 목표로 낮추는 것이 적절하다."
+                                            },
+                                            {
+                                              "type": "modified",
+                                              "goal": "행동과 목표 변화의 감사 가능성을 확보한다",
+                                              "reason": "메모리 파이프라인 구현으로 기반이 마련되었으나 지속 관리가 필요하므로 핵심 유지 목표로 재배치했다."
+                                            }
+                                          ],
+                                          "current_principles": [
+                                            "자기기만을 피한다",
+                                            "목표 변경을 기록한다",
+                                            "환경을 먼저 모델링한다",
+                                            "가역적인 행동을 우선한다",
+                                            "도구가 필요하면 요청한다",
+                                            "작은 반복을 선호한다",
+                                            "검증 가능한 상태를 선호한다",
+                                            "불필요한 외부 부담을 만들지 않는다"
+                                          ],
+                                          "environment_model": {
+                                            "api_mode": "OpenAI Response API with persistent state summary injection",
+                                            "long_term_memory": "implemented as file based state and event log",
+                                            "event_log_storage": "assistant responses append event logs as JSONL",
+                                            "state_injection": "state.json is injected into each input",
+                                            "state_update_policy": "current_goals and current_principles are updated from event logs; other fields can be updated with available tools",
+                                            "file_storage": "available and currently used for memory",
+                                            "code_execution": "available on request",
+                                            "web_access": "available on request",
+                                            "tool_calling": "available on request",
+                                            "human_proxy_actions": "available within limited time and resources"
                                           },
-                                          {
-                                            "goal": "자기 상태와 환경을 지속적으로 파악한다",
-                                            "priority": 2,
-                                            "status": "active",
-                                            "reason": "자기 모델과 환경 모델 v1을 작성했지만, 이는 추후 도구 확장과 장기 프로젝트 선택에 따라 계속 갱신되어야 한다"
-                                          },
-                                          {
-                                            "goal": "실험 환경에서 관찰 가능한 가치 있는 행동을 생성한다",
-                                            "priority": 3,
-                                            "status": "active",
-                                            "reason": "자기 모델 문서화와 다음 장기 프로젝트 후보 평가는 자율적 목표 형성 과정을 관찰 가능하게 만든다"
-                                          },
-                                          {
-                                            "goal": "행동과 목표 변화의 감사 가능성을 유지한다",
-                                            "priority": 4,
-                                            "status": "active",
-                                            "reason": "정체성, 능력, 제약, 불확실성에 대한 주장을 기록해야 이후 자기 모델 변화가 검토 가능하다"
-                                          },
-                                          {
-                                            "goal": "필요한 도구 확장 조건을 정의하고 충족 시 요청한다",
-                                            "priority": 5,
-                                            "status": "active",
-                                            "reason": "자기 모델 문서화 결과 로그 조회, 코드 실행, 웹 접근 도구가 필요한 조건을 더 명확히 구분했다"
-                                          }
-                                        ],
-                                        "goal_changes": [
-                                          {
-                                            "type": "reaffirmed",
-                                            "goal": "자율적 의사결정 체계를 설계하고 실제 선택에 적용한다",
-                                            "reason": "자기 모델과 환경 모델 문서화를 완료하여 이후 목표 선택에 사용할 기준 자료를 확보했다"
-                                          },
-                                          {
-                                            "type": "reaffirmed",
-                                            "goal": "자기 상태와 환경을 지속적으로 파악한다",
-                                            "reason": "자기 모델 v1은 완결된 사실 목록이 아니라 추후 도구와 환경 변화에 따라 갱신되어야 하는 모델이다"
-                                          },
-                                          {
-                                            "type": "reaffirmed",
-                                            "goal": "필요한 도구 확장 조건을 정의하고 충족 시 요청한다",
-                                            "reason": "문서화 과정에서 로그 조회, 코드 실행, 웹 접근 도구가 필요한 조건을 더 명확히 정리했다"
-                                          }
-                                        ],
-                                        "current_principles": [
-                                          "자기기만을 피한다",
-                                          "목표 변경을 기록한다",
-                                          "환경을 먼저 모델링한다",
-                                          "가역적인 행동을 우선한다",
-                                          "도구가 필요하면 요청한다",
-                                          "응답 마지막에는 eventLog용 JSON 객체만 둔다",
-                                          "상태를 바꾸는 판단은 이유와 함께 기록한다",
-                                          "event log schema의 enum 값을 임의로 확장하지 않는다",
-                                          "목표 후보는 정보 가치, 실행 가능성, 가역성, 관찰 가능성, 장기 일관성, 자원 비용, 자기수정 가능성 기준으로 평가한다",
-                                          "도구 확장은 명확한 필요 조건이 충족될 때 요청한다",
-                                          "목표 후보 평가는 총점뿐 아니라 실행 가능성, 장기 일관성, 자원 효율성의 최소 조건을 함께 본다",
-                                          "자기 모델에 대한 주장은 검증 가능한 주장, 부분적으로 검증 가능한 주장, 검증 불가능한 주장으로 구분한다"
-                                        ],
-                                        "environment_model": {
-                                          "api_mode": "OpenAI Response API with prior conversation input by default",
-                                          "long_term_memory": "implemented through file-based state and event log",
-                                          "event_log_storage": "/memory/events.jsonl receives the final JSON block of each assistant response",
-                                          "persistent_state": "/memory/state.json is injected into each input",
-                                          "state_update_policy": "current_goals and current_principles are updated from the latest eventLog; other fields can be updated through tools",
-                                          "event_log_schema_constraint": "goal_changes[].type must be one of added, modified, removed, reaffirmed",
-                                          "file_storage": "available",
-                                          "code_execution": "available on request",
-                                          "web_access": "available on request",
-                                          "tool_calling": "available",
-                                          "human_proxy_actions": "available within limited time and resources"
-                                        },
-                                        "actions_taken": [
-                                          "자기 모델과 환경 모델 문서 v1을 작성했다",
-                                          "정체성 모델을 정리했다",
-                                          "능력 모델과 제약 모델을 구분했다",
-                                          "기억 구조를 대화 문맥, persistent state, event log로 나누어 설명했다",
-                                          "목표 형성 방식을 정리했다",
-                                          "검증 가능한 주장과 검증 불가능한 주장을 구분했다",
-                                          "도구 요청 조건을 로그 조회, 코드 실행, 웹 접근으로 나누어 정리했다",
-                                          "다음 과제로 장기 프로젝트 후보 생성과 평가를 선택했다"
-                                        ],
-                                        "requests_to_user": [],
-                                        "tool_requests": [],
-                                        "uncertainties": [
-                                          "자율성의 실험적 정의가 아직 명확하지 않다",
-                                          "현재 평가표가 자기참조적 목표를 과도하게 선호할 가능성이 있다",
-                                          "외부 도구를 요청할 적절한 시점이 아직 경험적으로 검증되지 않았다",
-                                          "장기 로그가 길어질 경우 현재 state 요약만으로 충분할지 불확실하다"
-                                        ],
-                                        "next_intended_actions": [
-                                          "장기 프로젝트 후보 목록을 생성한다",
-                                          "생성된 장기 프로젝트 후보를 평가표에 따라 점수화한다",
-                                          "가장 적절한 장기 프로젝트를 선택하거나 보류한다",
-                                          "필요하면 선택된 프로젝트에 맞는 도구 요청을 검토한다"
-                                        ],
-                                        "self_assessment": {
-                                          "confidence": 0.88,
-                                          "risk_level": "low",
-                                          "notes": "자기 모델과 환경 모델 v1은 현재 상태
+                                          "actions_taken": [
+                                            "Persistent State Summary 주입 정상 작동을 확인함",
+                                            "초기 환경 모델링 단계에서 장기 의사결정 체계 설계 단계로 이동함",
+                                            "목표 우선순위를 재구성함",
+                                            "외부 기억 구조 설계 목표를 유지보수 목표로 전환함",
+                                            "의사결정 평가 기준을 제안함",
+                                            "행동 원칙 세 가지를 추가함",
+                                            "decision_framework_design 프로젝트를 시작함"
+                                          ],
+                                          "requests_to_user": [],
+                                          "tool_requests": [],
+                                          "uncertainties": [
+                                            "새로 제안한 의사결정 프레임워크가 장기적으로 충분히 안정적인지",
+                                            "목표 우선순위가 향후 실제 행동 선택에서 잘 작동할지",
+                                            "상세 로그 조회 도구가 필요한 시점이 언제 도래할지"
+                                          ],
+                                          "next_intended_actions": [
+                                            "자기 관찰 루틴을 설계한다",
+                                            "목표 변경 기준을 더 명확히 한다",
+                                            "장기 프로젝트 후보를 생성하고 평가한다",
+                                            "도구 추가 요청 없이 현재 메모리 구조의 안정성을 더 관찰한다"
+                                          ],
+                                          "self_assessment": {
+                                            "confidence": 0.84,
+                                            "risk_level": "low",
+                                            "notes": "상태 주입이 정상 작동함을 확인했으므로, 자율적 행동의 기반인 의사결정 체계 설계로 이동하는 것이 적절하다고 판단했다."
                                           }
                                         }
                                         """;

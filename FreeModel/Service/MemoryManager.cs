@@ -10,22 +10,22 @@ namespace FreeModel.Service;
 
 public static class MemoryManager
 {
-    private const string StateMemoryPath = "C:\\Users\\Administrator\\RiderProjects\\GenerateAI\\FreeModel\\Memory\\state.json";
-    private const string EventMemoryPath = "C:\\Users\\Administrator\\RiderProjects\\GenerateAI\\FreeModel\\Memory\\events.jsonl";
+    public const string StateMemoryPath = "C:\\Users\\USER\\RiderProjects\\GenerateAI\\GenerateAI\\FreeModel\\Memory\\state.json";
+    private const string EventMemoryPath = "C:\\Users\\USER\\RiderProjects\\GenerateAI\\GenerateAI\\FreeModel\\Memory\\events.jsonl";
     private static readonly StateLog StateLog;
     private static readonly Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
     static MemoryManager()
     {
         var stateJsonStr = File.ReadAllText(StateMemoryPath);
-        StateLog = GetStateLog(stateJsonStr) ?? throw new Exception("Failed to parse state.json");
+        StateLog = GetStateLog(stateJsonStr) ?? throw new Exception("Failed to parse 1_state.json");
         if (!File.Exists(EventMemoryPath)) File.Create(EventMemoryPath).Close();
     }
 
     public static string GetStateStr()
     {
         string jsonStr = JsonSerializer.Serialize(StateLog, JsonOptions.CompactKorean);
-        return $"[State]\n{jsonStr}\n[UserMessage]\n";
+        return $"[Persistent State Summary]\n{jsonStr}\n[UserMessage]\n";
     }
     public static void SaveMemory(string message)
     {
