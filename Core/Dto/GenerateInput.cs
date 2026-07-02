@@ -1,23 +1,42 @@
-﻿using Core.Enum;
+using Core.Enum;
 
 namespace Core.Dto;
 
-public class GenerateInput(Role role, string content, int turn, Dictionary<Model, CacheInfo>? cacheInfos)
+public class GenerateInput(Role role, string content, int turn)
 {
     public Role Role { get; init; } = role;
     public string Content { get; private set; } = content;
-    public Dictionary<Model, CacheInfo> CacheInfos { get; } = cacheInfos ?? new();
+    internal Dictionary<Model, CacheInfo> CacheInfos { get; } = new();
+    internal long? CachedConversationId { get; private set; }
+    internal int? CacheBreakpointSequenceIndex { get; private set; }
     public readonly int Turn = turn;
 
     public void SetContent(string content)
     {
         if (Content == content)
+        {
             return;
+        }
 
         Content = content;
-        foreach (var value in CacheInfos.Values)
+        foreach (CacheInfo value in CacheInfos.Values)
         {
-            value.IsCached  = false;
+            value.IsCached = false;
         }
+    }
+
+    internal void SetCacheInfo(Model model, CacheInfo cacheInfo)
+    {
+        CacheInfos[model] = cacheInfo;
+    }
+
+    internal void SetCachedConversation(long conversationId)
+    {
+        CachedConversationId = conversationId;
+    }
+
+    internal void SetCacheBreakpoint(int? sequenceIndex)
+    {
+        CacheBreakpointSequenceIndex = sequenceIndex;
     }
 }

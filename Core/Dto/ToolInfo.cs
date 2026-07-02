@@ -2,7 +2,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Core.Interface;
-using FreeModel.Dto.ToolOutput;
 using OpenAI.Responses;
 
 namespace Core.Dto;

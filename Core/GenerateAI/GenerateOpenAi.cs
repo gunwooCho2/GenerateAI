@@ -1,10 +1,11 @@
 ﻿#pragma warning disable OPENAI001
 
 using System.Text.Json;
+using Core.Data;
 using Core.Dto;
 using Core.Enum;
+using Core.GenerateAI.Cache;
 using Core.Interface;
-using FreeModel.Dto.ToolOutput;
 using OpenAI.Responses;
 
 namespace Core.GenerateAI;
@@ -13,16 +14,32 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
 {
     private readonly ResponsesClient _client = new(apiKey: GetApiKey("OPENAI_API_KEY"));
     private const int MaxToolCall = 10;
+    protected override Model ProviderModel => Model.Gpt;
+    
     public override async Task<GenerateOutput<string>> GenerateAsync(string prompt, List<GenerateInput> inputs)
+    {
+        return await GenerateAsync(prompt, inputs, limit: 20);
+    }
+
+    public override async Task<GenerateOutput<string>> GenerateAsync(string prompt, List<GenerateInput> inputs, int limit)
     {
         CreateResponseOptions options = new CreateResponseOptions
         {
             Model = ModelName,
             Instructions = prompt,
-            MaxOutputTokenCount = Token
+            MaxOutputTokenCount = Token,
+            TruncationMode = ResponseTruncationMode.Auto
         };
-        ResponseResult response = await GetResponse(options, inputs);
-        return GetGenerateOutput<string>(response);
+
+        ProviderCacheStrategy strategy = ProviderCacheStrategies.For(ProviderModel);
+        await using GenerateAiDbContext? dbContext = CreateDbContext();
+        GenerateCacheStore? cacheStore = dbContext == null ? null : new GenerateCacheStore(dbContext, strategy);
+        GenerateRequestContext requestContext = cacheStore == null
+            ? new GenerateRequestContext { Inputs = inputs.OrderBy(input => input.Turn).ToList() }
+            : await cacheStore.PrepareAsync(inputs, limit);
+
+        ResponseResult response = await GetResponse(options, requestContext);
+        return await GetGenerateOutput<string>(response, cacheStore, requestContext, strategy);
     }
 
     public override async Task<GenerateOutput<string>> GenerateUseToolAsync(string prompt, List<GenerateInput> inputs, List<IToolInfo> tools)
@@ -38,12 +55,23 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
         {
             Model = ModelName,
             Instructions = prompt,
-            MaxOutputTokenCount = Token
+            MaxOutputTokenCount = Token,
+            TruncationMode = ResponseTruncationMode.Auto
         };
         foreach (var tool in tools)
             options.Tools.Add(tool.FunctionTool);
         
-        ResponseResult response = await GetResponse(options, inputs);
+        if (IsWebToolCall)
+            options.Tools.Add(ResponseTool.CreateWebSearchTool());
+        
+        ProviderCacheStrategy strategy = ProviderCacheStrategies.For(ProviderModel);
+        await using GenerateAiDbContext? dbContext = CreateDbContext();
+        GenerateCacheStore? cacheStore = dbContext == null ? null : new GenerateCacheStore(dbContext, strategy);
+        GenerateRequestContext requestContext = cacheStore == null
+            ? new GenerateRequestContext { Inputs = inputs.OrderBy(input => input.Turn).ToList() }
+            : await cacheStore.PrepareAsync(inputs, limit: 20);
+
+        ResponseResult response = await GetResponse(options, requestContext);
         int toolCallCount = 0;
         
         while (true)
@@ -93,7 +121,7 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
             }
 
             if (!hasToolCall)
-                return GetGenerateOutput<string>(response, totalToken, inputToken, outputToken, cacheHitToken);
+                return await GetGenerateOutput<string>(response, cacheStore, requestContext, strategy, totalToken, inputToken, outputToken, cacheHitToken);
             
             toolCallCount++;
             totalToken += response.Usage.TotalTokenCount;
@@ -108,52 +136,46 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
         }
     }
 
-    private async Task<ResponseResult> GetResponse(CreateResponseOptions options, List<GenerateInput> inputs)
+    private async Task<ResponseResult> GetResponse(CreateResponseOptions options, GenerateRequestContext requestContext)
     {
-        var orderedInputs = inputs.OrderBy(x => x.Turn).ToList();
-        int cachedIndex = CachedIndex(orderedInputs);
-        
-        if (cachedIndex != -1)
+        if (requestContext.ReusableCache != null && ProviderModel == Model.Gpt)
         {
-            var lastCachedInput = orderedInputs[cachedIndex];
-            options.PreviousResponseId = lastCachedInput.CacheInfos[Model.Gpt].CacheKey;
+            options.PreviousResponseId = requestContext.ReusableCache.CacheKey;
         }
 
-        BuildMessages(options, orderedInputs, cachedIndex); 
+        BuildMessages(options, requestContext); 
         return await _client.CreateResponseAsync(options);
     }
-
-    private int CachedIndex(List<GenerateInput> orderedInputs)
-    {
-        int firstInvalidIndex = orderedInputs.FindIndex(x =>
-            !x.CacheInfos.TryGetValue(Model.Gpt, out var cacheInfo)
-            || !cacheInfo.IsUsable);
-
-        return firstInvalidIndex != -1
-            ? firstInvalidIndex - 1
-            : orderedInputs.Count - 1;
-    }
     
-    private static void BuildMessages(CreateResponseOptions options, List<GenerateInput> orderedInputs, int cachedIndex)
+    private static void BuildMessages(CreateResponseOptions options, GenerateRequestContext requestContext)
     {
-        for (int i = cachedIndex + 1; i < orderedInputs.Count; i++)
+        foreach (var content in requestContext.PreviousContents)
         {
-            var input = orderedInputs[i];
+            if (content.Role == ContentRole.Input) options.InputItems.Add(ResponseItem.CreateUserMessageItem(content.Message));
+            else if (content.Role == ContentRole.Output) options.InputItems.Add(ResponseItem.CreateAssistantMessageItem(content.Message));
+        }
+
+        foreach (GenerateInput input in requestContext.Inputs)
+        {
             var requestMessage = input.Role == Role.User ? ResponseItem.CreateUserMessageItem(input.Content) : ResponseItem.CreateAssistantMessageItem(input.Content);
             options.InputItems.Add(requestMessage);
         }
     }
     
-    private static GenerateOutput<T> GetGenerateOutput<T>(ResponseResult response, int previousTokenCount = 0, int inputTokenCount = 0, int outputTokenCount = 0, int cacheHitTokenCount = 0)
+    private static async Task<GenerateOutput<T>> GetGenerateOutput<T>(
+        ResponseResult response,
+        GenerateCacheStore? cacheStore,
+        GenerateRequestContext requestContext,
+        ProviderCacheStrategy strategy,
+        int previousTokenCount = 0,
+        int inputTokenCount = 0,
+        int outputTokenCount = 0,
+        int cacheHitTokenCount = 0)
     {
-        int totalToken = response.Usage.TotalTokenCount;
-        int inputToken = response.Usage.InputTokenCount;
-        int outputToken = response.Usage.OutputTokenCount;
-        int cacheHitToken = response.Usage.InputTokenDetails.CachedTokenCount;
-
-        var responseId = response.Id;
-        var dateNow = DateTime.UtcNow;
-        var cacheInfo = new CacheInfo(dateNow, dateNow.AddDays(30), responseId);
+        int totalToken = response.Usage.TotalTokenCount + previousTokenCount;
+        int inputToken = response.Usage.InputTokenCount + inputTokenCount;
+        int outputToken = response.Usage.OutputTokenCount + outputTokenCount;
+        int cacheHitToken = response.Usage.InputTokenDetails.CachedTokenCount + cacheHitTokenCount;
 
         T output;
 
@@ -164,6 +186,17 @@ public class GenerateOpenAi(string modelName, int token = 4096): GenerateAi(mode
         else
         {
             throw new NotImplementedException($"Type {typeof(T).Name} is not supported.");
+        }
+
+        CacheInfo? cacheInfo = null;
+        if (cacheStore != null && output is string outputText)
+        {
+            cacheInfo = await cacheStore.SaveAsync(
+                requestContext.Inputs,
+                outputText,
+                response.Id,
+                strategy.GetNextSequenceIndex(response.OutputItems.Cast<object>().ToList()),
+                requestContext.ParentConversation?.Id);
         }
 
         return new GenerateOutput<T>(

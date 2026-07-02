@@ -1,17 +1,11 @@
-﻿namespace Core.Dto;
+namespace Core.Dto;
 
-public class CacheInfo(DateTime cachedAt, DateTime expiresAt, string cacheKey)
+public class CacheInfo(DateTime cachedAt, DateTime? expiresAt, string cacheKey, int? sequenceIndex = null)
 {
-    public bool IsUsable
-    {
-        get
-        {
-            if (ExpiresAt >= DateTime.UtcNow && IsCached) return true;
-            return false;
-        }
-    }
-    public bool IsCached { get; set; } = true;
-    public DateTime CachedAt { get; set; } = cachedAt;
-    public DateTime ExpiresAt { get; set; } = expiresAt;
-    public string CacheKey { get; set; } = cacheKey;
+    public bool IsUsable => (ExpiresAt == null || ExpiresAt >= DateTime.UtcNow) && IsCached;
+    public bool IsCached { get; internal set; } = true;
+    public DateTime CachedAt { get; internal set; } = cachedAt;
+    public DateTime? ExpiresAt { get; internal set; } = expiresAt;
+    public string CacheKey { get; internal set; } = cacheKey;
+    public int? SequenceIndex { get; internal set; } = sequenceIndex;
 }

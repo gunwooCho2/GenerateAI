@@ -1,5 +1,6 @@
 <Solution>
+  <Project Path="Core.Analyzers/Core.Analyzers.csproj" />
   <Project Path="Core/Core.csproj" />
   <Project Path="FindUser/FindUser.csproj" />
-  <Project Path="FreeModel/FreeModel.csproj" />
+  <Project Path="Memory/Memory.csproj" />
 </Solution>

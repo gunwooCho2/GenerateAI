@@ -1,5 +1,5 @@
 ﻿#pragma warning disable OPENAI001
-using FreeModel.Dto.ToolOutput;
+using Core.Dto;
 using OpenAI.Responses;
 
 namespace Core.Interface;
