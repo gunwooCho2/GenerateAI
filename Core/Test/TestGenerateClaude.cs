@@ -3,44 +3,37 @@ using Core.GenerateAI;
 
 namespace Core.Test;
 
-public static class TestGenerateGrok
+public static class TestGenerateClaude
 {
-    private static GenerateGrok Create()
+    private static GenerateClaude Create()
     {
-        return new GenerateGrok(
-            modelName: "grok-4",
-            promptCacheKey: "conversation-1234");
-    }
-
-    public static async Task<GenerateOutput<string>> RunAsync()
-    {
-        return await RunGenerateAsync();
+        return new GenerateClaude("claude-3-5-haiku-latest");
     }
 
     public static async Task<GenerateOutput<string>> RunGenerateAsync()
     {
-        using GenerateGrok grok = Create();
-        return await grok.GenerateAsync(TestGenerateAiSamples.Prompt, TestGenerateAiSamples.CreateInputs());
+        using GenerateClaude generateAi = Create();
+        return await generateAi.GenerateAsync(TestGenerateAiSamples.Prompt, TestGenerateAiSamples.CreateInputs());
     }
 
     public static async Task<GenerateOutput<string>> RunGenerateWithLimitAsync()
     {
-        using GenerateGrok grok = Create();
-        return await grok.GenerateAsync(TestGenerateAiSamples.Prompt, TestGenerateAiSamples.CreateInputs(), limit: 5);
+        using GenerateClaude generateAi = Create();
+        return await generateAi.GenerateAsync(TestGenerateAiSamples.Prompt, TestGenerateAiSamples.CreateInputs(), limit: 5);
     }
 
     public static async Task<NotImplementedException> RunGenerateUseToolThrowsAsync()
     {
         return await TestGenerateAiSamples.RunWithTemporaryEnvironmentVariableAsync(
-            "GROK_API_KEY",
-            "test-grok-api-key",
+            "ANTHROPIC_API_KEY",
+            "test-anthropic-api-key",
             async () =>
         {
-            using GenerateGrok grok = Create();
+            using GenerateClaude generateAi = Create();
 
             try
             {
-                await grok.GenerateUseToolAsync(
+                await generateAi.GenerateUseToolAsync(
                     TestGenerateAiSamples.Prompt,
                     TestGenerateAiSamples.CreateInputs(),
                     TestGenerateAiSamples.CreateNoTools());
@@ -56,8 +49,8 @@ public static class TestGenerateGrok
 
     public static async Task<GenerateOutput<string>> RunGenerateJsonStrAsync()
     {
-        using GenerateGrok grok = Create();
-        return await grok.GenerateJsonStrAsync(
+        using GenerateClaude generateAi = Create();
+        return await generateAi.GenerateJsonStrAsync(
             TestGenerateAiSamples.JsonPrompt,
             TestGenerateAiSamples.CreateInputs(),
             TestGenerateAiSamples.CreateJsonSchema());
@@ -65,10 +58,25 @@ public static class TestGenerateGrok
 
     public static async Task<GenerateOutput<TestGenerateAiSamples.JsonTestDto>> RunGenerateJsonAsync()
     {
-        using GenerateGrok grok = Create();
-        return await grok.GenerateJsonAsync<TestGenerateAiSamples.JsonTestDto>(
+        using GenerateClaude generateAi = Create();
+        return await generateAi.GenerateJsonAsync<TestGenerateAiSamples.JsonTestDto>(
             TestGenerateAiSamples.JsonPrompt,
             TestGenerateAiSamples.CreateInputs(),
             TestGenerateAiSamples.CreateJsonSchema());
+    }
+
+    public static async Task<List<string>> RunGenerateStreamAsync()
+    {
+        using GenerateClaude generateAi = Create();
+        List<string> chunks = [];
+
+        await foreach (string chunk in generateAi.GenerateStreamAsync(
+                           TestGenerateAiSamples.Prompt,
+                           TestGenerateAiSamples.CreateInputs()))
+        {
+            chunks.Add(chunk);
+        }
+
+        return chunks;
     }
 }
